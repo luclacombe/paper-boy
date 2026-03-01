@@ -1,0 +1,44 @@
+# Paper Boy Configuration
+# Copy this to config.yaml and customize.
+
+newspaper:
+  title: "Morning Digest"
+  language: "en"
+  max_articles_per_feed: 10
+
+  # Article images — embed images from articles into the EPUB
+  include_images: true
+  # Image optimization for e-reader display
+  image_max_width: 800       # Max width in pixels (sufficient for all e-ink screens)
+  image_max_height: 1200     # Max height — prevents tall infographics from dominating
+  image_quality: 80          # JPEG quality (75-85 is the sweet spot for e-ink)
+  image_min_dimension: 100   # Skip images smaller than this (filters tracking pixels/icons)
+
+feeds:
+  - name: "World News"
+    url: "https://www.theguardian.com/world/rss"
+
+  - name: "US News"
+    url: "https://www.theguardian.com/us-news/rss"
+
+  - name: "Technology"
+    url: "https://feeds.arstechnica.com/arstechnica/index"
+
+  - name: "Science"
+    url: "https://www.theguardian.com/science/rss"
+
+  - name: "Business"
+    url: "https://feeds.npr.org/1006/rss.xml"
+
+delivery:
+  method: "google_drive"  # "google_drive", "local", or "email"
+
+  google_drive:
+    # Folder name in Google Drive (Kobo default: "Rakuten Kobo")
+    folder_name: "Rakuten Kobo"
+    # Path to service account credentials JSON
+    # For GitHub Actions, set GOOGLE_CREDENTIALS secret instead
+    credentials_file: "credentials.json"
+
+  # Keep this many days of past issues in Google Drive
+  keep_days: 30

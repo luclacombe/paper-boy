@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=68.0", "setuptools-scm>=8.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "paper-boy"
+version = "0.1.0"
+description = "Automated morning newspaper for e-readers"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.9"
+dependencies = [
+    "feedparser>=6.0",
+    "trafilatura>=1.6",
+    "ebooklib>=0.18",
+    "Pillow>=10.0",
+    "google-api-python-client>=2.100",
+    "google-auth-oauthlib>=1.0",
+    "google-auth-httplib2>=0.2",
+    "click>=8.1",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+]
+
+[project.scripts]
+paper-boy = "paper_boy.cli:cli"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
