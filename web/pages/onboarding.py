@@ -348,41 +348,137 @@ elif current_step == 3:
         unsafe_allow_html=True,
     )
 
-    # Delivery method
-    delivery_method = st.radio(
-        "Delivery method",
-        options=["download", "google_drive"],
+    # Device selection
+    st.markdown(
+        """
+    <div class="section-label" style="margin-bottom: 0.75rem;">
+        YOUR E-READER
+    </div>
+    <hr class="dotted-rule" style="margin-bottom: 1rem;">
+    """,
+        unsafe_allow_html=True,
+    )
+
+    device = st.radio(
+        "E-reader device",
+        options=["kobo", "kindle", "remarkable", "other"],
         format_func=lambda x: {
-            "download": "Download Only",
-            "google_drive": "Kobo (via Google Drive)",
+            "kobo": "Kobo",
+            "kindle": "Kindle",
+            "remarkable": "reMarkable",
+            "other": "Other / Not sure",
         }[x],
         index=0,
         label_visibility="collapsed",
+        horizontal=True,
     )
 
-    if delivery_method == "download":
+    st.markdown("<hr class='dotted-rule' style='margin: 1rem 0;'>", unsafe_allow_html=True)
+
+    # Device-specific delivery options
+    if device == "kobo":
+        delivery_method = st.radio(
+            "Delivery method",
+            options=["google_drive", "download"],
+            format_func=lambda x: {
+                "download": "Download Only",
+                "google_drive": "Kobo (via Google Drive)",
+            }[x],
+            index=0,
+            label_visibility="collapsed",
+        )
+        if delivery_method == "google_drive":
+            st.markdown(
+                """
+            <div class="pb-card" style="padding: 1.25rem;">
+                <div class="body-text" style="font-size: 0.9rem; margin-bottom: 0.75rem;">
+                    Your newspaper appears in your Kobo library automatically
+                    via Google Drive sync.
+                </div>
+                <div class="caption-text">
+                    Requires Google Drive sync set up on your Kobo.
+                    Configure credentials in Delivery settings after setup.
+                </div>
+            </div>
+            """,
+                unsafe_allow_html=True,
+            )
+        else:
+            st.markdown(
+                """
+            <div class="pb-card" style="padding: 1.25rem;">
+                <div class="body-text" style="font-size: 0.9rem;">
+                    Download each edition manually.
+                    No setup required &mdash; great for trying things out.
+                </div>
+            </div>
+            """,
+                unsafe_allow_html=True,
+            )
+
+    elif device == "kindle":
+        delivery_method = st.radio(
+            "Delivery method",
+            options=["email", "download"],
+            format_func=lambda x: {
+                "email": "Send to Kindle (via email)",
+                "download": "Download Only",
+            }[x],
+            index=0,
+            label_visibility="collapsed",
+        )
+        if delivery_method == "email":
+            kindle_email = st.text_input(
+                "Your Kindle email address",
+                placeholder="your-name@kindle.com",
+                help="Find this in your Kindle settings or Amazon account under 'Manage Your Content and Devices'.",
+            )
+            st.markdown(
+                """
+            <div class="pb-card" style="padding: 1.25rem;">
+                <div class="body-text" style="font-size: 0.9rem;">
+                    We'll email each edition directly to your Kindle.
+                    Configure the sending email in Delivery settings after setup.
+                </div>
+            </div>
+            """,
+                unsafe_allow_html=True,
+            )
+        else:
+            kindle_email = ""
+            st.markdown(
+                """
+            <div class="pb-card" style="padding: 1.25rem;">
+                <div class="body-text" style="font-size: 0.9rem;">
+                    Download and sideload via USB or email manually.
+                </div>
+            </div>
+            """,
+                unsafe_allow_html=True,
+            )
+
+    elif device == "remarkable":
+        delivery_method = "download"
         st.markdown(
             """
         <div class="pb-card" style="padding: 1.25rem;">
             <div class="body-text" style="font-size: 0.9rem;">
-                Download each edition manually from the Past Editions page.
-                No setup required &mdash; great for trying things out.
+                Download each edition and transfer to your reMarkable via USB
+                or the reMarkable desktop app.
             </div>
         </div>
         """,
             unsafe_allow_html=True,
         )
-    else:
+
+    else:  # other
+        delivery_method = "download"
         st.markdown(
             """
         <div class="pb-card" style="padding: 1.25rem;">
-            <div class="body-text" style="font-size: 0.9rem; margin-bottom: 0.75rem;">
-                Your newspaper appears in your Kobo library automatically
-                via Google Drive sync.
-            </div>
-            <div class="caption-text">
-                Requires a Google Drive connection and Kobo set up with Google Drive sync.
-                Configure this in Delivery settings after setup.
+            <div class="body-text" style="font-size: 0.9rem;">
+                Download each edition as an EPUB file.
+                Works with any e-reader or reading app that supports EPUB.
             </div>
         </div>
         """,
@@ -454,11 +550,21 @@ elif current_step == 3:
         use_container_width=True,
     ):
         # Save the config
+        actual_method = delivery_method
+        if actual_method == "download":
+            actual_method = "local"
+
         config = {
             "title": title,
             "feeds": st.session_state["onboarding_feeds"],
-            "delivery_method": "local" if delivery_method == "download" else "google_drive",
+            "device": device,
+            "delivery_method": actual_method,
             "google_drive_folder": "Rakuten Kobo",
+            "kindle_email": kindle_email if device == "kindle" else "",
+            "email_smtp_host": "smtp.gmail.com",
+            "email_smtp_port": 465,
+            "email_sender": "",
+            "email_password": "",
             "max_articles_per_feed": max_articles,
             "include_images": include_images,
             "delivery_time": delivery_time,

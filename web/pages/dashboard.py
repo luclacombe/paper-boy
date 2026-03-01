@@ -12,7 +12,8 @@ from web.components.navigation import render_navigation
 from web.components.cards import status_banner, headline_card
 from web.components.loading import show_empty_state, BUILD_MESSAGES
 from web.services.database import get_user_config, get_delivery_history, add_delivery_record
-from web.services.builder import build_edition, preview_feeds
+from web.services.builder import build_edition, deliver_edition, preview_feeds
+from web.services import github_actions
 
 
 inject_theme()
@@ -94,6 +95,14 @@ with btn_col2:
         use_container_width=True,
     )
 
+# GitHub Actions trigger (if configured)
+if github_actions.is_configured():
+    if st.button("Build on GitHub", use_container_width=True):
+        if github_actions.trigger_build():
+            st.success("Build triggered on GitHub Actions. Check Past Editions for status.")
+        else:
+            st.error("Failed to trigger GitHub Actions build.")
+
 # === BUILD PROCESS ===
 if build_clicked:
     progress_bar = st.progress(0)
@@ -124,7 +133,11 @@ if build_clicked:
         )
         progress_bar.progress(0.5)
 
-        epub_path = build_edition(config)
+        result = build_edition(config)
+        epub_path = result.epub_path
+
+        # Store sections for headline display
+        st.session_state["last_sections"] = result.sections
 
         # Step 4: Folding and bundling
         status_text.markdown(
@@ -132,7 +145,21 @@ if build_clicked:
             f"{BUILD_MESSAGES[3]}</div>",
             unsafe_allow_html=True,
         )
-        progress_bar.progress(0.8)
+        progress_bar.progress(0.7)
+
+        # Deliver if not local-only
+        delivery_method = config.get("delivery_method", "local")
+        delivery_msg = ""
+        if delivery_method != "local":
+            status_text.markdown(
+                f'<div class="caption-text" style="text-align: center; font-style: italic;">'
+                f"{BUILD_MESSAGES[4]}</div>",
+                unsafe_allow_html=True,
+            )
+            progress_bar.progress(0.85)
+            delivery_ok, delivery_msg = deliver_edition(epub_path, config)
+            if not delivery_ok:
+                st.warning(f"Build succeeded but delivery failed: {delivery_msg}")
 
         # Get file size
         file_size_bytes = os.path.getsize(epub_path)
@@ -141,25 +168,22 @@ if build_clicked:
         else:
             file_size = f"{file_size_bytes / 1024:.0f} KB"
 
-        # Step 5: Done!
-        status_text.markdown(
-            f'<div class="caption-text" style="text-align: center; font-style: italic;">'
-            f"{BUILD_MESSAGES[4]}</div>",
-            unsafe_allow_html=True,
-        )
         progress_bar.progress(1.0)
+        status_text.empty()
 
         now = datetime.now()
         build_record = {
             "status": "delivered",
             "time": now.strftime("%-I:%M %p"),
             "date": now.strftime("%A, %B %-d, %Y"),
-            "article_count": len(feeds) * config.get("max_articles_per_feed", 10),
-            "source_count": len(feeds),
+            "article_count": result.total_articles,
+            "source_count": len([s for s in result.sections if s.articles]),
             "file_size": file_size,
             "file_size_bytes": file_size_bytes,
             "epub_path": str(epub_path),
             "edition_date": date.today().isoformat(),
+            "delivery_method": delivery_method,
+            "delivery_message": delivery_msg,
         }
 
         st.session_state["last_build"] = build_record
@@ -210,14 +234,21 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+# Build headline mapping from last build's sections
+_sections = st.session_state.get("last_sections", [])
+_headlines_by_feed = {}
+for section in _sections:
+    _headlines_by_feed[section.name] = [a.title for a in section.articles]
+
 # Display feeds in 2-column layout
 col1, col2 = st.columns(2)
 
 for i, feed in enumerate(feeds):
     with col1 if i % 2 == 0 else col2:
+        feed_headlines = _headlines_by_feed.get(feed["name"], [])
         headline_card(
             source_name=feed["name"],
-            headlines=[],  # Headlines populated after build
+            headlines=feed_headlines,
             source_type=feed.get("type", "RSS"),
         )
 

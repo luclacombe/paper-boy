@@ -30,6 +30,15 @@ tab_feeds, tab_newsletters = st.tabs(["RSS Feeds", "Newsletters"])
 with tab_feeds:
     feeds = get_feeds()
 
+    # Build feed health from last build sections
+    _sections = st.session_state.get("last_sections", [])
+    _healthy_feeds = set()
+    _feed_article_counts = {}
+    for section in _sections:
+        if section.articles:
+            _healthy_feeds.add(section.name)
+            _feed_article_counts[section.name] = len(section.articles)
+
     if not feeds:
         show_empty_state("no_sources")
     else:
@@ -37,10 +46,17 @@ with tab_feeds:
         for feed in feeds:
             col1, col2 = st.columns([4, 1])
             with col1:
+                feed_name = feed["name"]
+                # Determine health: if we have build data, check results
+                if _sections:
+                    feed_status = "active" if feed_name in _healthy_feeds else "warning"
+                else:
+                    feed_status = "active"
                 source_card(
-                    name=feed["name"],
+                    name=feed_name,
                     url=feed["url"],
-                    status="active",
+                    article_count=_feed_article_counts.get(feed_name),
+                    status=feed_status,
                 )
             with col2:
                 st.markdown("<br>", unsafe_allow_html=True)
