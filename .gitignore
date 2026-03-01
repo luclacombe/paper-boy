@@ -13,10 +13,21 @@ build/
 config.yaml
 credentials.json
 
+# Research notes
+RESEARCH.md
+RESEARCH-EBOOK-GENERATION.md
+design-spec.md
+web-product-research.md
+
 # IDE
 .vscode/
 .idea/
 *.swp
+
+# Streamlit
+.streamlit/secrets.toml
+user_config.json
+delivery_history.json
 
 # Claude Code
 .claude/
