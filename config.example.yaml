@@ -33,12 +33,25 @@ feeds:
 delivery:
   method: "google_drive"  # "google_drive", "local", or "email"
 
+  # Target e-reader: "kobo", "kindle", "remarkable", or "other"
+  # Affects EPUB metadata (Kobo gets calibre:series for NickelSeries mod)
+  device: "kobo"
+
   google_drive:
     # Folder name in Google Drive (Kobo default: "Rakuten Kobo")
     folder_name: "Rakuten Kobo"
     # Path to service account credentials JSON
     # For GitHub Actions, set GOOGLE_CREDENTIALS secret instead
     credentials_file: "credentials.json"
+
+  # Email delivery (Send-to-Kindle, or any email address)
+  # Set method: "email" to use this
+  email:
+    smtp_host: "smtp.gmail.com"
+    smtp_port: 465
+    sender: ""            # Your email address
+    password: ""          # App password (not your regular password)
+    recipient: ""         # Kindle: your-kindle@kindle.com
 
   # Keep this many days of past issues in Google Drive
   keep_days: 30

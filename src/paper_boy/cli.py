@@ -50,8 +50,8 @@ def build(config_path: str, output_path: str | None) -> None:
 
     try:
         config = load_config(config_path)
-        epub_path = build_newspaper(config, output_path)
-        click.echo(f"Newspaper built: {epub_path}")
+        result = build_newspaper(config, output_path)
+        click.echo(f"Newspaper built: {result.epub_path}")
     except Exception as e:
         click.echo(f"Error: {e}", err=True)
         sys.exit(1)
@@ -80,8 +80,8 @@ def deliver(config_path: str, output_path: str | None) -> None:
 
     try:
         config = load_config(config_path)
-        epub_path = build_and_deliver(config, output_path)
-        click.echo(f"Newspaper built and delivered: {epub_path}")
+        result = build_and_deliver(config, output_path)
+        click.echo(f"Newspaper built and delivered: {result.epub_path}")
     except Exception as e:
         click.echo(f"Error: {e}", err=True)
         sys.exit(1)

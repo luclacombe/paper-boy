@@ -3,25 +3,36 @@
 from __future__ import annotations
 
 import logging
+from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
+from typing import List
 
 from paper_boy.config import Config
 from paper_boy.delivery import deliver
 from paper_boy.epub import build_epub
-from paper_boy.feeds import fetch_feeds
+from paper_boy.feeds import Section, fetch_feeds
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class BuildResult:
+    """Result of a newspaper build, including the fetched content."""
+
+    epub_path: Path
+    sections: List[Section]
+    total_articles: int
 
 
 def build_newspaper(
     config: Config,
     output_path: str | Path | None = None,
     issue_date: date | None = None,
-) -> Path:
+) -> BuildResult:
     """Fetch feeds and build the newspaper EPUB.
 
-    Returns the path to the generated EPUB file.
+    Returns a BuildResult with the EPUB path and fetched sections.
     """
     if issue_date is None:
         issue_date = date.today()
@@ -46,18 +57,22 @@ def build_newspaper(
     epub_path = build_epub(sections, config, issue_date, output_path)
     logger.info("Built EPUB: %s", epub_path)
 
-    return epub_path
+    return BuildResult(
+        epub_path=epub_path,
+        sections=sections,
+        total_articles=total_articles,
+    )
 
 
 def build_and_deliver(
     config: Config,
     output_path: str | Path | None = None,
     issue_date: date | None = None,
-) -> Path:
+) -> BuildResult:
     """Build the newspaper and deliver it."""
-    epub_path = build_newspaper(config, output_path, issue_date)
+    result = build_newspaper(config, output_path, issue_date)
 
     # Deliver
-    deliver(epub_path, config)
+    deliver(result.epub_path, config)
 
-    return epub_path
+    return result

@@ -19,6 +19,8 @@ def deliver(epub_path: Path, config: Config) -> None:
 
     if method == "google_drive":
         deliver_google_drive(epub_path, config)
+    elif method == "email":
+        deliver_email(epub_path, config)
     elif method == "local":
         logger.info("Local delivery: file at %s", epub_path)
     else:
@@ -68,6 +70,51 @@ def deliver_google_drive(epub_path: Path, config: Config) -> None:
 
     # Clean up old issues
     _cleanup_old_issues(service, folder_id, config.delivery.keep_days)
+
+
+def deliver_email(epub_path: Path, config: Config) -> None:
+    """Send EPUB via email (Send-to-Kindle, etc.)."""
+    import smtplib
+    from email import encoders
+    from email.mime.base import MIMEBase
+    from email.mime.multipart import MIMEMultipart
+
+    email_cfg = config.delivery.email
+    if not email_cfg.sender or not email_cfg.recipient:
+        raise ValueError(
+            "Email delivery requires sender and recipient addresses. "
+            "Configure these in your delivery settings."
+        )
+    if not email_cfg.password:
+        raise ValueError(
+            "Email delivery requires an app password for the sender account."
+        )
+
+    msg = MIMEMultipart()
+    msg["From"] = email_cfg.sender
+    msg["To"] = email_cfg.recipient
+    msg["Subject"] = config.newspaper.title
+
+    part = MIMEBase("application", "epub+zip")
+    with open(epub_path, "rb") as f:
+        part.set_payload(f.read())
+    encoders.encode_base64(part)
+    part.add_header(
+        "Content-Disposition",
+        f'attachment; filename="{epub_path.name}"',
+    )
+    msg.attach(part)
+
+    with smtplib.SMTP_SSL(email_cfg.smtp_host, email_cfg.smtp_port) as server:
+        server.login(email_cfg.sender, email_cfg.password)
+        server.send_message(msg)
+
+    logger.info(
+        "Emailed %s to %s via %s",
+        epub_path.name,
+        email_cfg.recipient,
+        email_cfg.smtp_host,
+    )
 
 
 def _get_google_credentials(config: Config):

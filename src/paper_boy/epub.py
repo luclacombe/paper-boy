@@ -143,18 +143,19 @@ def build_epub(
 
     # Calibre series metadata — Kobo reads this with NickelSeries mod
     # Groups all issues as a series in the library, sorted by date
-    book.add_metadata(
-        None, "meta", "", {"name": "calibre:series", "content": config.newspaper.title}
-    )
-    book.add_metadata(
-        None,
-        "meta",
-        "",
-        {
-            "name": "calibre:series_index",
-            "content": issue_date.strftime("%Y%m%d"),
-        },
-    )
+    if getattr(config.delivery, "device", "kobo") == "kobo":
+        book.add_metadata(
+            None, "meta", "", {"name": "calibre:series", "content": config.newspaper.title}
+        )
+        book.add_metadata(
+            None,
+            "meta",
+            "",
+            {
+                "name": "calibre:series_index",
+                "content": issue_date.strftime("%Y%m%d"),
+            },
+        )
 
     # EPUB3 series metadata (standard)
     book.add_metadata(
