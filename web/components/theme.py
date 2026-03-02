@@ -176,6 +176,19 @@ def inject_theme():
         text-align: center;
     }
 
+    /* === COMPACT HEADER === */
+    .compact-header-title {
+        font-family: 'Playfair Display', Georgia, 'Times New Roman', serif;
+        font-weight: 900;
+        font-size: 1.3rem;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+        color: #1B1B1B;
+        text-align: center;
+        margin: 0;
+        padding: 0.5rem 0 0.25rem 0;
+    }
+
     .headline-text {
         font-family: 'Libre Baskerville', Georgia, serif;
         font-weight: 700;
@@ -270,10 +283,63 @@ def inject_theme():
     .pb-card-clickable:hover {
         border-color: #C23B22;
     }
-    .pb-card-selected {
-        border-color: #C23B22;
+    .pb-card.pb-card-selected {
+        border-color: #C23B22 !important;
         border-width: 2px;
         box-shadow: 0 0 0 1px #C23B22;
+    }
+
+    /* Device selection cards */
+    .device-card {
+        text-align: center;
+        padding: 1.5rem 0.75rem;
+        min-height: 170px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* Device card clickable overlay — invisible button covers the card */
+    [data-testid="stColumn"]:has(.device-select-card) [data-testid="stButton"] {
+        margin-top: -190px;
+        position: relative;
+        z-index: 10;
+    }
+    [data-testid="stColumn"]:has(.device-select-card) [data-testid="stButton"] button {
+        height: 190px;
+        background: transparent !important;
+        border: none !important;
+        color: transparent !important;
+        cursor: pointer;
+        box-shadow: none !important;
+        border-radius: 2px !important;
+    }
+    [data-testid="stColumn"]:has(.device-select-card) [data-testid="stButton"] button:hover {
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
+    }
+
+    /* Bundle card clickable overlay — invisible button covers the card */
+    [data-testid="stColumn"]:has(.bundle-select-card) [data-testid="stButton"] {
+        margin-top: -90px;
+        position: relative;
+        z-index: 10;
+    }
+    [data-testid="stColumn"]:has(.bundle-select-card) [data-testid="stButton"] button {
+        height: 90px;
+        background: transparent !important;
+        border: none !important;
+        color: transparent !important;
+        cursor: pointer;
+        box-shadow: none !important;
+        border-radius: 2px !important;
+    }
+    [data-testid="stColumn"]:has(.bundle-select-card) [data-testid="stButton"] button:hover {
+        background: transparent !important;
+        border: none !important;
+        box-shadow: none !important;
     }
 
     /* === STATUS BADGES === */
