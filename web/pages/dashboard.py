@@ -1,4 +1,4 @@
-"""Today's Edition — the main dashboard page."""
+"""Home — the main dashboard page."""
 
 import os
 import time
@@ -7,139 +7,99 @@ from datetime import date, datetime
 import streamlit as st
 
 from web.components.theme import inject_theme
-from web.components.masthead import render_masthead
-from web.components.navigation import render_navigation
+from web.components.masthead import render_header
 from web.components.cards import status_banner, headline_card
 from web.components.loading import show_empty_state, BUILD_MESSAGES
 from web.services.database import get_user_config, get_delivery_history, add_delivery_record
-from web.services.builder import build_edition, deliver_edition, preview_feeds
+from web.services.builder import build_edition, deliver_edition
+from web.services.feed_catalog import describe_feed_selection
 from web.services import github_actions
 
 
-inject_theme()
-
-# Masthead
-render_masthead(show_date=True, edition_number=st.session_state.get("edition_number"))
-
-# Navigation
-render_navigation("dashboard")
-
-# Get user config
-config = get_user_config()
-feeds = config.get("feeds", [])
-
-if not feeds:
-    show_empty_state("no_sources")
-    if st.button("Add Sources", type="primary"):
-        st.switch_page("pages/sources.py")
-    st.stop()
+def _format_time(dt: datetime) -> str:
+    """Format time cross-platform (avoids %-I which fails on Windows)."""
+    hour = dt.hour % 12 or 12
+    am_pm = "AM" if dt.hour < 12 else "PM"
+    return f"{hour}:{dt.strftime('%M')} {am_pm}"
 
 
-# === STATUS BANNER ===
-last_build = st.session_state.get("last_build")
+def _format_date(dt) -> str:
+    """Format date cross-platform (avoids %-d which fails on Windows)."""
+    return dt.strftime(f"%A, %B {dt.day}, %Y")
 
-if last_build:
-    if last_build["status"] == "delivered":
-        status_banner(
-            "delivered",
-            f"Today's edition delivered at {last_build.get('time', '')}",
-            f"{last_build.get('article_count', 0)} articles · "
-            f"{last_build.get('source_count', 0)} sources · "
-            f"{last_build.get('file_size', '')}",
+
+def _delivery_needs_setup(config: dict) -> tuple[bool, str]:
+    """Check if the user's delivery method needs additional setup.
+
+    Returns (needs_setup, message) tuple.
+    """
+    method = config.get("delivery_method", "local")
+    device = config.get("device", "other")
+
+    if method == "google_drive":
+        # Google Drive needs credentials — check if GOOGLE_CREDENTIALS env var
+        # or credentials.json exists (these are set up outside the app)
+        has_creds = (
+            os.environ.get("GOOGLE_CREDENTIALS")
+            or os.path.exists("credentials.json")
         )
-    elif last_build["status"] == "failed":
-        status_banner(
-            "failed",
-            "Something went wrong while building your edition.",
-            last_build.get("error", "We'll try again automatically."),
-        )
-    elif last_build["status"] == "building":
-        status_banner(
-            "building",
-            "Building your edition...",
-            "This usually takes 1-3 minutes.",
-        )
-else:
-    status_banner(
-        "empty",
-        "No edition built yet",
-        "Click 'Build New Edition' to create your first newspaper.",
-    )
+        if not has_creds:
+            return True, "Connect your Google Drive so editions are delivered to your Kobo automatically."
+        return False, ""
 
-st.markdown("<br>", unsafe_allow_html=True)
+    if method == "email":
+        # Email needs SMTP settings
+        if not config.get("kindle_email") or not config.get("email_sender") or not config.get("email_password"):
+            return True, "Add your Kindle email and SMTP settings so editions are sent to your Kindle."
+        return False, ""
 
-# === ACTION BUTTONS ===
-btn_col1, btn_col2 = st.columns(2)
+    return False, ""
 
-with btn_col1:
-    # Download button (only if we have a built EPUB)
-    epub_path = st.session_state.get("last_epub_path")
-    if epub_path and os.path.exists(epub_path):
-        with open(epub_path, "rb") as f:
-            epub_bytes = f.read()
-        today = date.today().isoformat()
-        st.download_button(
-            "Download EPUB",
-            data=epub_bytes,
-            file_name=f"paper-boy-{today}.epub",
-            mime="application/epub+zip",
-            use_container_width=True,
-        )
-    else:
-        st.button("Download EPUB", disabled=True, use_container_width=True)
 
-with btn_col2:
-    build_clicked = st.button(
-        "Build New Edition",
-        type="primary",
-        use_container_width=True,
-    )
+def _device_label(config: dict) -> str:
+    """Human-readable device + delivery method label."""
+    device = config.get("device", "other")
+    method = config.get("delivery_method", "local")
 
-# GitHub Actions trigger (if configured)
-if github_actions.is_configured():
-    if st.button("Build on GitHub", use_container_width=True):
-        if github_actions.trigger_build():
-            st.success("Build triggered on GitHub Actions. Check Past Editions for status.")
-        else:
-            st.error("Failed to trigger GitHub Actions build.")
+    device_names = {
+        "kobo": "Kobo",
+        "kindle": "Kindle",
+        "remarkable": "reMarkable",
+        "other": "E-reader",
+    }
+    device_name = device_names.get(device, device)
 
-# === BUILD PROCESS ===
-if build_clicked:
+    method_labels = {
+        "google_drive": "via Google Drive",
+        "email": "via email",
+        "local": "download",
+    }
+    method_label = method_labels.get(method, method)
+
+    return f"{device_name} \u00b7 {method_label}"
+
+
+def _run_build(config: dict):
+    """Execute the build + delivery pipeline with progress UI.
+
+    Stores results in session_state and reruns the page on completion.
+    """
     progress_bar = st.progress(0)
     status_text = st.empty()
 
     try:
-        # Step 1: Setting the type
-        status_text.markdown(
-            f'<div class="caption-text" style="text-align: center; font-style: italic;">'
-            f"{BUILD_MESSAGES[0]}</div>",
-            unsafe_allow_html=True,
-        )
-        progress_bar.progress(0.1)
-
-        # Step 2: Pulling from the wire
-        status_text.markdown(
-            f'<div class="caption-text" style="text-align: center; font-style: italic;">'
-            f"{BUILD_MESSAGES[1]}</div>",
-            unsafe_allow_html=True,
-        )
-        progress_bar.progress(0.3)
-
-        # Step 3: Running the press (actual build)
-        status_text.markdown(
-            f'<div class="caption-text" style="text-align: center; font-style: italic;">'
-            f"{BUILD_MESSAGES[2]}</div>",
-            unsafe_allow_html=True,
-        )
-        progress_bar.progress(0.5)
+        for i, msg in enumerate(BUILD_MESSAGES[:3]):
+            status_text.markdown(
+                f'<div class="caption-text" style="text-align: center; font-style: italic;">'
+                f"{msg}</div>",
+                unsafe_allow_html=True,
+            )
+            progress_bar.progress([0.1, 0.3, 0.5][i])
 
         result = build_edition(config)
         epub_path = result.epub_path
-
-        # Store sections for headline display
         st.session_state["last_sections"] = result.sections
 
-        # Step 4: Folding and bundling
         status_text.markdown(
             f'<div class="caption-text" style="text-align: center; font-style: italic;">'
             f"{BUILD_MESSAGES[3]}</div>",
@@ -159,7 +119,7 @@ if build_clicked:
             progress_bar.progress(0.85)
             delivery_ok, delivery_msg = deliver_edition(epub_path, config)
             if not delivery_ok:
-                st.warning(f"Build succeeded but delivery failed: {delivery_msg}")
+                st.warning(f"Edition created but delivery failed: {delivery_msg}")
 
         # Get file size
         file_size_bytes = os.path.getsize(epub_path)
@@ -174,8 +134,8 @@ if build_clicked:
         now = datetime.now()
         build_record = {
             "status": "delivered",
-            "time": now.strftime("%-I:%M %p"),
-            "date": now.strftime("%A, %B %-d, %Y"),
+            "time": _format_time(now),
+            "date": _format_date(now),
             "article_count": result.total_articles,
             "source_count": len([s for s in result.sections if s.articles]),
             "file_size": file_size,
@@ -189,13 +149,11 @@ if build_clicked:
         st.session_state["last_build"] = build_record
         st.session_state["last_epub_path"] = str(epub_path)
 
-        # Track edition number
         edition_num = st.session_state.get("edition_number", 0) + 1
         st.session_state["edition_number"] = edition_num
         build_record["edition_number"] = edition_num
 
         add_delivery_record(build_record)
-
         time.sleep(1)
         st.rerun()
 
@@ -204,38 +162,202 @@ if build_clicked:
         status_text.empty()
 
         error_msg = str(e)
-        # Translate technical errors to human-friendly messages
         if "No articles" in error_msg:
             friendly_msg = "None of your sources had new articles. This can happen on slow news days."
         elif "ConnectionError" in error_msg or "timeout" in error_msg.lower():
             friendly_msg = "We couldn't reach some of your sources. Please try again in a few minutes."
         else:
-            friendly_msg = "Something went wrong while building your edition. Please try again."
+            friendly_msg = "Something went wrong while creating your edition. Please try again."
 
         st.session_state["last_build"] = {
             "status": "failed",
             "error": friendly_msg,
-            "time": datetime.now().strftime("%-I:%M %p"),
+            "time": _format_time(datetime.now()),
         }
         st.rerun()
 
 
-# === HEADLINES SECTION ===
-st.markdown(
-    """
-<div style="margin: 1.5rem 0 1rem 0; text-align: center;">
-    <hr class="thin-rule">
-    <div class="section-label" style="padding: 0.5rem 0; font-size: 0.8rem;">
-        TODAY'S SOURCES
+# === PAGE RENDER ===
+
+inject_theme()
+render_header("dashboard")
+
+# Get user config
+config = get_user_config()
+feeds = config.get("feeds", [])
+
+if not feeds:
+    show_empty_state("no_sources")
+    if st.button("Add Sources", type="primary"):
+        st.switch_page("pages/sources.py")
+    st.stop()
+
+
+# === CHECK FOR FIRST-RUN EXPERIENCE ===
+last_build = st.session_state.get("last_build")
+_sections = st.session_state.get("last_sections", [])
+
+if not last_build and not _sections:
+    # First visit after onboarding — show setup summary
+    _selection_desc = describe_feed_selection({f["url"] for f in feeds})
+    _device_info = _device_label(config)
+    _delivery_time = config.get("delivery_time", "06:00")
+    _timezone = config.get("timezone", "UTC")
+
+    needs_setup, setup_msg = _delivery_needs_setup(config)
+
+    st.html(
+        f"""
+    <div class="pb-card" style="text-align: center; padding: 2rem 1.5rem;">
+        <div class="headline-text" style="font-size: 1.3rem; margin-bottom: 1rem;">
+            You're all set!
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 0.4rem; align-items: center; margin-bottom: 1.25rem;">
+            <div class="body-text" style="font-size: 0.95rem; color: #7A7570;">
+                {_device_info}
+            </div>
+            <div class="body-text" style="font-size: 0.95rem; color: #7A7570;">
+                {_selection_desc}
+            </div>
+            <div class="body-text" style="font-size: 0.95rem; color: #7A7570;">
+                Daily at {_delivery_time} AM {_timezone}
+            </div>
+        </div>
     </div>
-    <hr class="thin-rule">
-</div>
-""",
-    unsafe_allow_html=True,
+    """
+    )
+
+    if needs_setup:
+        # Delivery method needs configuration — prompt setup
+        st.html(
+            f"""
+        <div class="caption-text" style="text-align: center; margin: 0.75rem 0 0.5rem 0;">
+            {setup_msg}
+        </div>
+        """
+        )
+        if st.button("Complete Delivery Setup", type="primary", use_container_width=True):
+            st.switch_page("pages/delivery.py")
+
+        st.html(
+            '<div class="caption-text" style="text-align: center; margin-top: 0.75rem;">or</div>'
+        )
+        first_build_clicked = st.button(
+            "Create First Edition (download only)",
+            use_container_width=True,
+        )
+    else:
+        # Setup is complete — create first edition
+        delivery_method = config.get("delivery_method", "local")
+        if delivery_method == "local":
+            hint = "Your paper will be built daily. Download it here anytime."
+        else:
+            hint = f"After this, your paper will be built and delivered automatically each day at {_delivery_time} AM."
+
+        st.html(
+            f'<div class="caption-text" style="text-align: center; margin: 0.5rem 0;">{hint}</div>'
+        )
+        first_build_clicked = st.button(
+            "Create My First Edition",
+            type="primary",
+            use_container_width=True,
+        )
+
+    st.html(
+        '<div class="caption-text" style="text-align: center; margin-top: 0.5rem;">'
+        "This usually takes 1-3 minutes.</div>"
+    )
+
+    if first_build_clicked:
+        _run_build(config)
+
+    st.stop()
+
+
+# === DATE + EDITION LINE ===
+_today = date.today()
+_edition_num = st.session_state.get("edition_number")
+_edition_text = f" &middot; Edition #{_edition_num}" if _edition_num else ""
+st.html(
+    f'<div class="masthead-date" style="margin-bottom: 0.75rem;">'
+    f"{_format_date(_today)}{_edition_text}</div>"
+)
+
+# === STATUS BANNER ===
+if last_build:
+    if last_build["status"] == "delivered":
+        status_banner(
+            "delivered",
+            f"Today's edition delivered at {last_build.get('time', '')}",
+            f"{last_build.get('article_count', 0)} articles \u00b7 "
+            f"{last_build.get('source_count', 0)} sources \u00b7 "
+            f"{last_build.get('file_size', '')}",
+        )
+    elif last_build["status"] == "failed":
+        status_banner(
+            "failed",
+            "Something went wrong while creating your edition.",
+            last_build.get("error", "We'll try again automatically."),
+        )
+    elif last_build["status"] == "building":
+        status_banner(
+            "building",
+            "Creating your edition...",
+            "This usually takes 1-3 minutes.",
+        )
+else:
+    status_banner(
+        "empty",
+        "No edition yet",
+        "Click 'Create New Edition' to get started.",
+    )
+
+# === ACTION BUTTONS ===
+btn_col1, btn_col2 = st.columns(2)
+
+with btn_col1:
+    epub_path = st.session_state.get("last_epub_path")
+    if epub_path and os.path.exists(epub_path):
+        with open(epub_path, "rb") as f:
+            epub_bytes = f.read()
+        today = date.today().isoformat()
+        st.download_button(
+            "Download EPUB",
+            data=epub_bytes,
+            file_name=f"paper-boy-{today}.epub",
+            mime="application/epub+zip",
+            use_container_width=True,
+        )
+    else:
+        st.button("Download EPUB", disabled=True, use_container_width=True)
+
+with btn_col2:
+    build_clicked = st.button(
+        "Create New Edition",
+        type="primary",
+        use_container_width=True,
+    )
+
+# GitHub Actions trigger (if configured)
+if github_actions.is_configured():
+    if st.button("Create on GitHub", use_container_width=True):
+        if github_actions.trigger_build():
+            st.success("Edition creation started on GitHub. Check Editions for status.")
+        else:
+            st.error("Failed to trigger GitHub Actions.")
+
+# === BUILD PROCESS ===
+if build_clicked:
+    _run_build(config)
+
+
+# === HEADLINES SECTION ===
+st.html(
+    '<div class="section-label" style="padding: 1rem 0 0.5rem 0; font-size: 0.8rem;">'
+    "TODAY'S SOURCES</div>"
 )
 
 # Build headline mapping from last build's sections
-_sections = st.session_state.get("last_sections", [])
 _headlines_by_feed = {}
 for section in _sections:
     _headlines_by_feed[section.name] = [a.title for a in section.articles]
@@ -251,29 +373,3 @@ for i, feed in enumerate(feeds):
             headlines=feed_headlines,
             source_type=feed.get("type", "RSS"),
         )
-
-
-# === SOURCE STATUS TABLE ===
-st.markdown(
-    """
-<div style="margin: 1.5rem 0 1rem 0; text-align: center;">
-    <hr class="thin-rule">
-    <div class="section-label" style="padding: 0.5rem 0; font-size: 0.8rem;">
-        SOURCE STATUS
-    </div>
-    <hr class="thin-rule">
-</div>
-""",
-    unsafe_allow_html=True,
-)
-
-for feed in feeds:
-    st.markdown(
-        f"""
-    <div class="source-row">
-        <span>{feed['name']}</span>
-        <span class="caption-text">RSS</span>
-    </div>
-    """,
-        unsafe_allow_html=True,
-    )
