@@ -21,15 +21,15 @@ EMPTY_STATES = {
     },
     "no_editions": {
         "title": "No editions yet",
-        "message": "Your first edition hasn't been printed yet. Click 'Build New Edition' to create one.",
+        "message": "Your first edition hasn't been created yet. Click 'Create New Edition' to get started.",
     },
     "no_newsletters": {
         "title": "No newsletters received",
         "message": "We haven't received any forwarded newsletters yet. It can take a few minutes for the first one to arrive.",
     },
     "no_history": {
-        "title": "No past editions",
-        "message": "Your edition history will appear here after your first build.",
+        "title": "No editions yet",
+        "message": "Your edition history will appear here after your first paper is created. Head to the Home page to create one.",
     },
 }
 
@@ -74,7 +74,7 @@ def show_empty_state(state_key: str):
     """
     state = EMPTY_STATES.get(state_key, EMPTY_STATES["no_editions"])
 
-    st.markdown(
+    st.html(
         f"""
     <div style="text-align: center; padding: 3rem 1rem;">
         <div class="headline-text" style="font-size: 1.2rem; margin-bottom: 0.5rem;">
@@ -84,6 +84,5 @@ def show_empty_state(state_key: str):
             {state['message']}
         </div>
     </div>
-    """,
-        unsafe_allow_html=True,
+    """
     )

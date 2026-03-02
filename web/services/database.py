@@ -25,8 +25,10 @@ DEFAULT_CONFIG = {
     "email_sender": "",
     "email_password": "",
     "max_articles_per_feed": 10,
+    "reading_time": "20 min",
     "include_images": True,
     "delivery_time": "06:00",
+    "timezone": "UTC",
     "language": "en",
 }
 

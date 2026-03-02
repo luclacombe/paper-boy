@@ -46,12 +46,10 @@ def main():
     else:
         # Full app navigation
         pages = [
-            st.Page(
-                "pages/dashboard.py", title="Today's Edition", default=True
-            ),
-            st.Page("pages/sources.py", title="My Sources"),
+            st.Page("pages/dashboard.py", title="Home", default=True),
+            st.Page("pages/sources.py", title="Sources"),
             st.Page("pages/delivery.py", title="Delivery"),
-            st.Page("pages/history.py", title="Past Editions"),
+            st.Page("pages/history.py", title="Editions"),
         ]
 
     nav = st.navigation(pages, position="hidden")
