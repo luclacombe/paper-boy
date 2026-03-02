@@ -7,13 +7,13 @@ from web.components.theme import inject_theme
 
 inject_theme()
 
-# === HERO SECTION ===
+# === HERO SECTION (compact) ===
 st.markdown(
     """
-<div class="landing-hero">
+<div style="text-align: center; padding: 1.5rem 0 0.75rem 0;">
     <hr class="thick-rule">
-    <div style="padding: 1.5rem 0 1rem 0;">
-        <h1 class="masthead-title" style="font-size: 2.8rem;">
+    <div style="padding: 1.25rem 0 0.75rem 0;">
+        <h1 class="masthead-title" style="font-size: 2.5rem;">
             P A P E R &nbsp; B O Y
         </h1>
         <p class="masthead-subtitle" style="font-size: 1.15rem; margin-top: 0.5rem;">
@@ -27,32 +27,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# === GET STARTED BUTTON ===
-col1, col2, col3 = st.columns([1, 1, 1])
-with col2:
-    if st.button("Get Started", type="primary", use_container_width=True):
-        st.session_state["started_onboarding"] = True
-        st.rerun()
-
-    st.markdown(
-        '<div style="text-align: center; margin-top: 0.25rem;">'
-        '<span class="caption-text">No account required</span>'
-        "</div>",
-        unsafe_allow_html=True,
-    )
-
-st.markdown("<br>", unsafe_allow_html=True)
-
 # === HOW IT WORKS — 3 COLUMNS ===
-st.markdown(
-    """
-<div style="text-align: center; margin-bottom: 1rem;">
-    <hr class="thin-rule">
-</div>
-""",
-    unsafe_allow_html=True,
-)
-
 col1, col2, col3 = st.columns(3)
 
 with col1:
@@ -90,7 +65,7 @@ with col3:
         """
     <div class="how-it-works-card">
         <div class="how-it-works-number">3</div>
-        <div class="how-it-works-title">Read on Your Kobo</div>
+        <div class="how-it-works-title">Read on Your E-Reader</div>
         <div class="how-it-works-desc">
             A beautiful edition waits on your e-reader every morning.
             No phone, no screen glare, just news.
@@ -100,32 +75,29 @@ with col3:
         unsafe_allow_html=True,
     )
 
-st.markdown("<br>", unsafe_allow_html=True)
-
-# === PULL QUOTE ===
+# === CALL TO ACTION STATEMENT ===
 st.markdown(
     """
-<div style="text-align: center; margin: 1rem 0;">
-    <hr class="thin-rule">
-    <div style="padding: 1.5rem 2rem;">
-        <div class="pull-quote-mark">&ldquo;</div>
-        <div class="pull-quote">
-            I replaced my morning phone scroll with 20 minutes of reading
-            on my Kobo. Paper Boy made it effortless.
-        </div>
+<div style="text-align: center; padding: 1rem 0;">
+    <div class="body-text" style="padding: 0.5rem 2rem; font-size: 1rem; color: #7A7570;">
+        Your news, formatted for your e-reader, ready every morning.<br>
+        Free. Open source. No ads. No tracking.
     </div>
-    <hr class="thin-rule">
 </div>
 """,
     unsafe_allow_html=True,
 )
 
-# === FOOTER ===
-st.markdown(
-    """
-<div class="pb-footer">
-    Free. Open source. No ads. No tracking.
-</div>
-""",
-    unsafe_allow_html=True,
-)
+# === GET STARTED BUTTON (at the bottom, after all info) ===
+col1, col2, col3 = st.columns([1, 1, 1])
+with col2:
+    if st.button("Get Started", type="primary", use_container_width=True):
+        st.session_state["started_onboarding"] = True
+        st.rerun()
+
+    st.markdown(
+        '<div style="text-align: center; margin-top: 0.25rem;">'
+        '<span class="caption-text">No account required</span>'
+        "</div>",
+        unsafe_allow_html=True,
+    )
