@@ -63,7 +63,7 @@ export default function LandingPage() {
           Free. Open source. No ads. No tracking.
         </p>
         <Link
-          href="/signup"
+          href="/onboarding"
           className="inline-flex items-center rounded-sm bg-ink px-8 py-3 font-body text-sm font-semibold uppercase tracking-wider text-newsprint transition-colors hover:bg-ink/90"
         >
           Get Started

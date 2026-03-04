@@ -7,7 +7,12 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const profile = await getUserProfile();
+  let profile;
+  try {
+    profile = await getUserProfile();
+  } catch {
+    redirect("/login");
+  }
 
   if (!profile || !profile.onboardingComplete) {
     redirect("/onboarding");

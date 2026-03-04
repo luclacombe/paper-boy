@@ -47,7 +47,7 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith("/sources") ||
     pathname.startsWith("/delivery") ||
     pathname.startsWith("/editions");
-  const isOnboardingRoute = pathname.startsWith("/onboarding");
+  const isOnboardingCompleteRoute = pathname === "/onboarding/complete";
 
   // Authenticated users should not see login/signup — send to dashboard
   if (user && isAuthRoute) {
@@ -56,12 +56,14 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Unauthenticated users cannot access app or onboarding
-  if (!user && (isAppRoute || isOnboardingRoute)) {
+  // Unauthenticated users cannot access app routes or onboarding/complete
+  if (!user && (isAppRoute || isOnboardingCompleteRoute)) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
   }
+
+  // /onboarding is publicly accessible (no auth required)
 
   return supabaseResponse;
 }
