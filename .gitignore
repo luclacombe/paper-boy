@@ -11,7 +11,17 @@ build/
 # Generated files
 *.epub
 config.yaml
+
+# Secrets / credentials
 credentials.json
+client_secret*.json
+token.json
+token.pickle
+.env
+.env.*
+*.pem
+*.key
+*.bak
 
 # Research notes
 RESEARCH.md
