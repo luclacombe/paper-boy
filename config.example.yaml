@@ -49,9 +49,9 @@ delivery:
   email:
     smtp_host: "smtp.gmail.com"
     smtp_port: 465
-    sender: ""            # Your email address
-    password: ""          # App password (not your regular password)
-    recipient: ""         # Kindle: your-kindle@kindle.com
+    sender: "your-email@gmail.com"         # Your email address
+    password: "xxxx xxxx xxxx xxxx"        # Gmail App Password (not your regular password)
+    recipient: "your-kindle@kindle.com"    # Kindle: your Send-to-Kindle address
 
   # Keep this many days of past issues in Google Drive
   keep_days: 30
