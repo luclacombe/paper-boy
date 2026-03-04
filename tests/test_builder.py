@@ -192,6 +192,90 @@ class TestDeliverEdition:
         assert success is False
         assert "upload failed" in msg
 
+    @patch("web.services.builder.deliver")
+    def test_gmail_api_routing_when_tokens_have_gmail_scope(
+        self, mock_deliver, sample_user_config
+    ):
+        """Email delivery routes to gmail_api when tokens include gmail.send scope."""
+        sample_user_config["delivery_method"] = "email"
+        sample_user_config["kindle_email"] = "kindle@kindle.com"
+        sample_user_config["google_tokens"] = {
+            "refresh_token": "rt",
+            "client_id": "cid",
+            "client_secret": "cs",
+            "scopes": [
+                "https://www.googleapis.com/auth/drive.file",
+                "https://www.googleapis.com/auth/gmail.send",
+            ],
+        }
+
+        success, msg = deliver_edition("/tmp/test.epub", sample_user_config)
+
+        assert success is True
+        assert "Gmail" in msg
+        # Verify deliver was called with method overridden to gmail_api
+        call_args = mock_deliver.call_args
+        config = call_args[0][1]
+        assert config.delivery.method == "email"  # restored after call
+        assert call_args[1]["token_data"] is not None
+
+    @patch("web.services.builder.deliver")
+    def test_email_smtp_when_no_gmail_scope(self, mock_deliver, sample_user_config):
+        """Email delivery uses SMTP when tokens lack gmail.send scope."""
+        sample_user_config["delivery_method"] = "email"
+        sample_user_config["kindle_email"] = "kindle@kindle.com"
+        sample_user_config["google_tokens"] = {
+            "refresh_token": "rt",
+            "client_id": "cid",
+            "client_secret": "cs",
+            "scopes": ["https://www.googleapis.com/auth/drive.file"],
+        }
+
+        success, msg = deliver_edition("/tmp/test.epub", sample_user_config)
+
+        assert success is True
+        assert "Emailed" in msg  # SMTP path, not "via Gmail"
+
+    @patch("web.services.builder.deliver")
+    def test_email_smtp_when_no_tokens(self, mock_deliver, sample_user_config):
+        """Email delivery uses SMTP when no google_tokens at all."""
+        sample_user_config["delivery_method"] = "email"
+        sample_user_config["kindle_email"] = "kindle@kindle.com"
+
+        success, msg = deliver_edition("/tmp/test.epub", sample_user_config)
+
+        assert success is True
+        assert "Emailed" in msg
+
+    @patch("web.services.builder.deliver")
+    def test_google_drive_passes_token_data(self, mock_deliver, sample_user_config):
+        """Google Drive delivery passes token_data through."""
+        sample_user_config["delivery_method"] = "google_drive"
+        tokens = {"refresh_token": "rt", "client_id": "cid", "client_secret": "cs"}
+        sample_user_config["google_tokens"] = tokens
+
+        deliver_edition("/tmp/test.epub", sample_user_config)
+
+        call_kwargs = mock_deliver.call_args[1]
+        assert call_kwargs["token_data"] is tokens
+
+    @patch("web.services.builder.deliver", side_effect=Exception("token expired"))
+    def test_gmail_api_failure_returns_error(self, mock_deliver, sample_user_config):
+        """Gmail API delivery failure returns (False, error message)."""
+        sample_user_config["delivery_method"] = "email"
+        sample_user_config["kindle_email"] = "kindle@kindle.com"
+        sample_user_config["google_tokens"] = {
+            "refresh_token": "rt",
+            "client_id": "cid",
+            "client_secret": "cs",
+            "scopes": ["https://www.googleapis.com/auth/gmail.send"],
+        }
+
+        success, msg = deliver_edition("/tmp/test.epub", sample_user_config)
+
+        assert success is False
+        assert "token expired" in msg
+
 
 # --- TestPreviewFeeds ---
 
