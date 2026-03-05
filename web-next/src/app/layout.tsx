@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import {
   Playfair_Display,
   Libre_Baskerville,
-  Source_Sans_3,
+  IM_Fell_English,
   JetBrains_Mono,
+  Special_Elite,
 } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
@@ -22,15 +23,23 @@ const libreBaskerville = Libre_Baskerville({
   display: "swap",
 });
 
-const sourceSans3 = Source_Sans_3({
+const imFellEnglish = IM_Fell_English({
   variable: "--font-body",
   subsets: ["latin"],
-  weight: ["300", "400", "600", "700"],
+  weight: ["400"],
+  style: ["normal", "italic"],
   display: "swap",
 });
 
 const jetbrainsMono = JetBrains_Mono({
   variable: "--font-mono",
+  subsets: ["latin"],
+  weight: ["400"],
+  display: "swap",
+});
+
+const specialElite = Special_Elite({
+  variable: "--font-typewriter",
   subsets: ["latin"],
   weight: ["400"],
   display: "swap",
@@ -50,8 +59,30 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${playfairDisplay.variable} ${libreBaskerville.variable} ${sourceSans3.variable} ${jetbrainsMono.variable} antialiased`}
+        className={`${playfairDisplay.variable} ${libreBaskerville.variable} ${imFellEnglish.variable} ${jetbrainsMono.variable} ${specialElite.variable} antialiased`}
       >
+        <svg
+          style={{ display: "none" }}
+          aria-hidden="true"
+          xmlns="http://www.w3.org/2000/svg"
+        >
+          <filter id="inkbleed">
+            <feTurbulence
+              type="fractalNoise"
+              baseFrequency="0.04"
+              numOctaves="5"
+              seed="2"
+              result="noise"
+            />
+            <feDisplacementMap
+              in="SourceGraphic"
+              in2="noise"
+              scale="1.5"
+              xChannelSelector="R"
+              yChannelSelector="G"
+            />
+          </filter>
+        </svg>
         {children}
         <Toaster />
       </body>
